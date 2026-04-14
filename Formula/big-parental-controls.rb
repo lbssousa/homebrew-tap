@@ -8,6 +8,11 @@ class BigParentalControls < Formula
 
   bottle :unneeded
 
+  livecheck do
+    url "https://github.com/biglinux/big-parental-controls/tags"
+    regex(/big-parental-controls-(\d+(?:\.\d+)+)/i)
+  end
+
   depends_on "gtk4"
   depends_on "libadwaita"
   depends_on "pygobject3"

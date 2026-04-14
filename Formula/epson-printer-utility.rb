@@ -8,6 +8,11 @@ class EpsonPrinterUtility < Formula
 
   bottle :unneeded
 
+  livecheck do
+    url "https://aur.archlinux.org/rpc/v5/info/epson-printer-utility"
+    regex(/"Version":"(\d+(?:\.\d+)+)/i)
+  end
+
   depends_on "libusb"
 
   def install
