@@ -1,0 +1,107 @@
+name: Bump epson-printer-utility
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # Every Monday at 08:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for new version
+        id: check
+        run: |
+          # Check the AUR RPC API for the latest package version
+          AUR_INFO=$(curl -fsSL "https://aur.archlinux.org/rpc/v5/info/epson-printer-utility")
+          AUR_VERSION=$(echo "$AUR_INFO" | jq -r '.results[0].Version')
+
+          # AUR Version is "<pkgver>-<pkgrel>" (e.g. "1.2.2-1")
+          PKGVER=$(echo "$AUR_VERSION" | cut -d- -f1)
+          PKGREL=$(echo "$AUR_VERSION" | cut -d- -f2)
+          NEW_VERSION="$PKGVER"
+
+          if [ -z "$PKGVER" ] || [ -z "$PKGREL" ]; then
+            echo "Could not parse version from AUR: $AUR_VERSION"
+            exit 1
+          fi
+
+          # Fetch the PKGBUILD to obtain the actual download URL for this release
+          PKGBUILD=$(curl -fsSL "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=epson-printer-utility")
+
+          # Extract the .deb source URL (may contain ${pkgver} / ${pkgrel} variables)
+          SRC_LINE=$(echo "$PKGBUILD" | python3 -c "
+import re, sys
+m = re.search(r'https://[^\s\"\']+\.deb', sys.stdin.read())
+print(m.group(0) if m else '')
+")
+
+          if [ -z "$SRC_LINE" ]; then
+            echo "Could not extract .deb URL from PKGBUILD"
+            exit 1
+          fi
+
+          # Expand ${pkgver} and ${pkgrel} variable references
+          NEW_URL=$(echo "$SRC_LINE" | sed "s/\${pkgver}/$PKGVER/g; s/\${pkgrel}/$PKGREL/g")
+
+          CURRENT_URL=$(grep -oP '(?<=url ")[^"]+' Formula/epson-printer-utility.rb)
+          CURRENT_VERSION=$(grep -oP '(?<=version ")\d+\.\d+\.\d+' Formula/epson-printer-utility.rb)
+
+          echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "current_url=$CURRENT_URL"          >> "$GITHUB_OUTPUT"
+          echo "new_version=$NEW_VERSION"          >> "$GITHUB_OUTPUT"
+          echo "new_url=$NEW_URL"                  >> "$GITHUB_OUTPUT"
+          echo "pkgver=$PKGVER"                    >> "$GITHUB_OUTPUT"
+          echo "pkgrel=$PKGREL"                    >> "$GITHUB_OUTPUT"
+
+          if [ "$NEW_URL" != "$CURRENT_URL" ]; then
+            echo "needs_update=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_update=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download package and compute SHA-256
+        if: steps.check.outputs.needs_update == 'true'
+        id: hash
+        run: |
+          NEW_SHA256=$(curl -fsSL "${{ steps.check.outputs.new_url }}" | sha256sum | cut -d' ' -f1)
+          echo "new_sha256=$NEW_SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Update formula
+        if: steps.check.outputs.needs_update == 'true'
+        run: |
+          NEW_VERSION="${{ steps.check.outputs.new_version }}"
+          NEW_URL="${{ steps.check.outputs.new_url }}"
+          NEW_SHA256="${{ steps.hash.outputs.new_sha256 }}"
+
+          sed -i "s|url \"[^\"]*\"|url \"$NEW_URL\"|"          Formula/epson-printer-utility.rb
+          sed -i "s|sha256 \"[^\"]*\"|sha256 \"$NEW_SHA256\"|" Formula/epson-printer-utility.rb
+          sed -i "s|version \"[^\"]*\"|version \"$NEW_VERSION\"|" Formula/epson-printer-utility.rb
+
+      - name: Create Pull Request
+        if: steps.check.outputs.needs_update == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "epson-printer-utility ${{ steps.check.outputs.new_version }}"
+          title: "epson-printer-utility ${{ steps.check.outputs.new_version }}"
+          body: |
+            Bumps **epson-printer-utility** from `${{ steps.check.outputs.current_version }}` to `${{ steps.check.outputs.new_version }}`.
+
+            | Field | Value |
+            |-------|-------|
+            | AUR package | `epson-printer-utility ${{ steps.check.outputs.pkgver }}-${{ steps.check.outputs.pkgrel }}` |
+            | New URL | ${{ steps.check.outputs.new_url }} |
+
+            ---
+            *This PR was created automatically by the [Bump epson-printer-utility](${{ github.server_url }}/${{ github.repository }}/actions/workflows/bump-epson-printer-utility.yml) workflow.*
+          branch: "bump/epson-printer-utility-${{ steps.check.outputs.new_version }}"
+          delete-branch: true
+          labels: automated-pr
