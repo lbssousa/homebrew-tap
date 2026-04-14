@@ -37,7 +37,11 @@ jobs:
           PKGBUILD=$(curl -fsSL "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=epson-printer-utility")
 
           # Extract the .deb source URL (may contain ${pkgver} / ${pkgrel} variables)
-          SRC_LINE=$(echo "$PKGBUILD" | grep -oP 'https://[^\s"'"'"')]+\.deb' | head -1)
+          SRC_LINE=$(echo "$PKGBUILD" | python3 -c "
+import re, sys
+m = re.search(r'https://[^\s\"\']+\.deb', sys.stdin.read())
+print(m.group(0) if m else '')
+")
 
           if [ -z "$SRC_LINE" ]; then
             echo "Could not extract .deb URL from PKGBUILD"

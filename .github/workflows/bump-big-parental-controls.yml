@@ -23,7 +23,7 @@ jobs:
         run: |
           # Get the latest tag matching big-parental-controls-<version>-*-x86_64
           LATEST_TAG=$(gh api repos/biglinux/big-parental-controls/tags \
-            --jq '[.[] | select(.name | test("^big-parental-controls-[0-9]+\\.[0-9]+\\.[0-9]+-.*-x86_64$"))] | first | .name')
+            --jq '[.[] | select(.name | test("^big-parental-controls-[0-9]+(\\.[0-9]+)+-.*-x86_64$"))] | first | .name')
 
           if [ -z "$LATEST_TAG" ]; then
             echo "No matching tag found"
