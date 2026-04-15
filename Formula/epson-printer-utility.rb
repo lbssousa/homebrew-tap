@@ -6,8 +6,6 @@ class EpsonPrinterUtility < Formula
   version "1.2.2"
   license :cannot_represent
 
-  bottle :unneeded
-
   livecheck do
     url "https://aur.archlinux.org/rpc/v5/info/epson-printer-utility"
     regex(/"Version":"(\d+(?:\.\d+)+)/i)
