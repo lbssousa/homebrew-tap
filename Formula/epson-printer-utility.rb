@@ -17,13 +17,13 @@ class EpsonPrinterUtility < Formula
     raise "#{name} is only available on Linux (x86_64)." unless OS.linux? && Hardware::CPU.intel?
 
     # The .deb file is an ar archive; extract it to obtain the data tarball.
-    system! "ar", "x", cached_download
+    system "ar", "x", cached_download
 
     # The data archive may use .gz, .xz, or .bz2 compression depending on the version.
     data_archive = Dir["data.tar.*"].first
     raise "No data archive found inside .deb" if data_archive.nil?
 
-    system! "tar", "xf", data_archive
+    system "tar", "xf", data_archive
 
     # Install the main GUI binary.
     bin.install "opt/epson-printer-utility/bin/epson-printer-utility"
