@@ -37,11 +37,12 @@ class EpsonPrinterUtility < Formula
     (lib/"epson-backend").install(*backend_files) unless backend_files.empty?
 
     # Extract and install the systemd service file (if present), rewriting the
-    # hard-coded /usr/lib/epson-backend path to the actual Homebrew prefix path.
+    # hard-coded /usr/lib/epson-backend path to the stable opt_prefix path so
+    # the service file remains valid across formula upgrades.
     service_files = Dir["lib/systemd/system/*.service"] + Dir["usr/lib/systemd/system/*.service"]
     unless service_files.empty?
       service_files.each do |sf|
-        inreplace sf, "/usr/lib/epson-backend", (lib/"epson-backend").to_s
+        inreplace sf, "/usr/lib/epson-backend", (opt_prefix/"lib/epson-backend").to_s
       end
       (lib/"systemd/system").install(*service_files)
     end
