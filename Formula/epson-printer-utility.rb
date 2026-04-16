@@ -58,6 +58,7 @@ class EpsonPrinterUtility < Formula
   service do
     run opt_prefix/"lib/epson-backend/ecbd"
     keep_alive true
+    require_root true
     log_path var/"log/ecbd.log"
     error_log_path var/"log/ecbd-error.log"
   end
